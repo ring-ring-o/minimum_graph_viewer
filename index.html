@@ -80,13 +80,11 @@
             top: 0;
             right: 0;
             width: 300px;
-            /* 幅を広げる */
             height: 100%;
             background-color: #f4f4f4;
             padding: 20px;
             box-shadow: -2px 0px 5px rgba(0, 0, 0, 0.1);
             display: none;
-            /* 初期状態は非表示 */
             z-index: 20;
             overflow-y: auto;
             transition: transform 0.3s ease;
@@ -101,7 +99,6 @@
             position: absolute;
             top: 20px;
             left: -40px;
-            /* サイドバーの外に出す */
             background-color: #f44336;
             color: black;
             border: none;
@@ -120,7 +117,6 @@
         #search-container {
             display: flex;
             flex-direction: column;
-            /* 横並びに変更 */
             margin-bottom: 10px;
         }
 
@@ -171,6 +167,7 @@
     <script>
         let svg, simulation, node, link, label, edgeLabels, graph, nodes, links;
         let highlightedNode = null; // ハイライトされたノードを追跡
+        let highlightedEdge = null; // ハイライトされたエッジを追跡
 
         // ドラッグ＆ドロップでファイルを読み込む処理
         const dropArea = document.getElementById('drop-area');
@@ -302,41 +299,75 @@
 
         // 検索結果をリストに表示
         function showSearchResults(searchTerm) {
-            const results = nodes.filter(node =>
+            const nodeResults = nodes.filter(node =>
                 node.label.toLowerCase().includes(searchTerm)
             );
 
+            const edgeResults = links.filter(link =>
+                link.label.toLowerCase().includes(searchTerm)
+            );
+
             searchResults.innerHTML = '';
-            results.forEach(result => {
+            nodeResults.forEach(result => {
                 const li = document.createElement('li');
                 li.textContent = result.label;
                 li.addEventListener('click', () => highlightNode(result.id));
                 searchResults.appendChild(li);
             });
 
-            if (results.length === 0) {
-                searchResults.innerHTML = '<li>ノードが見つかりませんでした。</li>';
+            edgeResults.forEach(result => {
+                const li = document.createElement('li');
+                li.textContent = result.label;
+                li.addEventListener('click', () => highlightEdge(result.source, result.target));
+                searchResults.appendChild(li);
+            });
+
+            if (nodeResults.length === 0 && edgeResults.length === 0) {
+                searchResults.innerHTML = '<li>ノードまたはエッジが見つかりませんでした。</li>';
             }
         }
 
         // ノードをハイライトする関数
         function highlightNode(nodeId) {
-            highlightedNode = nodeId; // ハイライトされたノードを保存
+            highlightedNode = nodeId;
             node.transition().duration(500)
                 .style("fill", d => d.id === nodeId ? "red" : "#ffc4f2");
 
             label.transition().duration(500)
                 .style("fill", d => d.id === nodeId ? "black" : "#000");
+
+            // ノードを中央にズーム
+            const nodeData = nodes.find(d => d.id === nodeId);
+            svg.transition().duration(500).call(
+                d3.zoom().transform, d3.zoomIdentity.translate(window.innerWidth / 2 - nodeData.x, window.innerHeight / 2 - nodeData.y).scale(2)
+            );
+        }
+
+        // エッジをハイライトする関数
+        function highlightEdge(sourceId, targetId) {
+            highlightedEdge = { sourceId, targetId };
+            link.transition().duration(500)
+                .style("stroke", d =>
+                    (d.source.id === sourceId && d.target.id === targetId) || (d.source.id === targetId && d.target.id === sourceId)
+                        ? "red" : "#999")
+                .style("stroke-width", d =>
+                    (d.source.id === sourceId && d.target.id === targetId) || (d.source.id === targetId && d.target.id === sourceId)
+                        ? 3 : 1);
         }
 
         // ハイライトをリセットする関数
         function resetHighlight() {
             highlightedNode = null;
+            highlightedEdge = null;
             node.transition().duration(500)
                 .style("fill", "#ffc4f2");
 
             label.transition().duration(500)
                 .style("fill", "#000");
+
+            link.transition().duration(500)
+                .style("stroke", "#999")
+                .style("stroke-width", 1);
         }
 
         // ドラッグイベント
