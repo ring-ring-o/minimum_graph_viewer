@@ -74,6 +74,39 @@
         #reset-button:hover {
             background-color: #45a049;
         }
+
+        /* 検索用の親コンテナ */
+        #search-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            z-index: 20;
+        }
+
+        /* 検索ボックスのスタイル */
+        #search-input {
+            padding: 10px;
+            font-size: 16px;
+            margin-right: 10px;
+            /* 検索ボタンと間隔を縮める */
+            width: 200px;
+        }
+
+        /* 検索ボタンのスタイル */
+        #search-button {
+            padding: 10px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        #search-button:hover {
+            background-color: #45a049;
+        }
     </style>
 </head>
 
@@ -83,12 +116,19 @@
     </div>
     <button id="reset-button" style="display: none;">グラフを削除して再度アップロード</button>
     <svg></svg>
+    <!-- 検索用の入力とボタンを同じ親コンテナに配置 -->
+    <div id="search-container" style="display: none;">
+        <input type="text" id="search-input" placeholder="ノードを検索">
+        <button id="search-button">検索</button>
+    </div>
+
     <script>
         let svg, simulation, node, link, label, edgeLabels, graph;
 
         // ドラッグ＆ドロップでファイルを読み込む処理
         const dropArea = document.getElementById('drop-area');
         const resetButton = document.getElementById('reset-button');
+        const searchArea = document.getElementById('search-container')
         dropArea.addEventListener('dragover', function (event) {
             event.preventDefault();  // デフォルトの動作を防ぐ（ファイルの読み込みを許可）
             dropArea.style.backgroundColor = 'rgba(0, 255, 0, 0.2)';  // ドロップ可能なエリアの色を変更
@@ -249,6 +289,7 @@
             // ドラッグ＆ドロップエリアを非表示にして、リセットボタンを表示
             dropArea.style.display = 'none';
             resetButton.style.display = 'block';
+            searchArea.style.display = 'block';
 
             initSearchfunctionality()
         }
@@ -264,6 +305,39 @@
             dropArea.style.display = 'flex';
             resetButton.style.display = 'none';
         });
+
+        // 検索機能を初期化
+        function initSearchfunctionality() {
+            const searchInput = document.getElementById('search-input');
+            const searchButton = document.getElementById('search-button');
+
+            searchButton.addEventListener('click', function () {
+                const searchTerm = searchInput.value.trim().toLowerCase();
+                if (searchTerm) {
+                    highlightNode(searchTerm);
+                }
+            });
+        }
+
+        // ノードを検索してハイライトする関数
+        function highlightNode(searchTerm) {
+            const targetNode = nodes.find(node => node.label && node.label.toLowerCase().includes(searchTerm));
+
+            if (targetNode) {
+                node.transition().duration(500)
+                    .style("fill", function (d) {
+                        return d.id === targetNode.id ? "red" : "#ffc4f2"; // 検索結果のノードを赤色に
+                    });
+
+                label.transition().duration(500)
+                    .style("fill", function (d) {
+                        return d.id === targetNode.id ? "red" : "#000"; // ラベルを赤色に
+                    });
+            } else {
+                alert("ノードが見つかりませんでした。");
+            }
+        }
+
     </script>
 </body>
 
