@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MinimunGraphViewer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        svg {
+            width: 100%;
+            height: 100vh;
+        }
+
+        .node {
+            fill: #ffc4f2;
+            stroke: #fff;
+            stroke-width: 1.5px;
+        }
+
+        .link {
+            stroke: #999;
+            stroke-width: 1px;
+        }
+
+        .label {
+            font-size: 12px;
+            pointer-events: none;
+            text-anchor: middle;
+            /* 水平中央揃え */
+        }
+
+        .edge-label {
+            font-size: 10px;
+            fill: #555;
+            pointer-events: none;
+        }
+
+        #drop-area {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60%;
+            height: 200px;
+            border: 2px dashed #ccc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            color: #555;
+            text-align: center;
+            z-index: 10;
+            background-color: rgba(255, 255, 255, 0.7);
+        }
+
+        #reset-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        #reset-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="drop-area">
+        <p>ここにJSONファイルをドラッグ&ドロップしてください</p>
+    </div>
+    <button id="reset-button" style="display: none;">グラフを削除して再度アップロード</button>
+    <svg></svg>
+    <script>
+        let svg, simulation, node, link, label, edgeLabels, graph;
+
+        // ドラッグ＆ドロップでファイルを読み込む処理
+        const dropArea = document.getElementById('drop-area');
+        const resetButton = document.getElementById('reset-button');
+        dropArea.addEventListener('dragover', function (event) {
+            event.preventDefault();  // デフォルトの動作を防ぐ（ファイルの読み込みを許可）
+            dropArea.style.backgroundColor = 'rgba(0, 255, 0, 0.2)';  // ドロップ可能なエリアの色を変更
+        });
+
+        dropArea.addEventListener('dragleave', function () {
+            dropArea.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
+        });
+
+        dropArea.addEventListener('drop', function (event) {
+            event.preventDefault();
+            dropArea.style.backgroundColor = 'rgba(255, 255, 255, 0.7)'; // 元の色に戻す
+
+            const file = event.dataTransfer.files[0]; // ドロップしたファイルを取得
+            if (file && file.type === 'application/json') {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    graph = JSON.parse(e.target.result);  // JSONファイルの内容をパース
+                    renderGraph(graph);  // グラフを描画
+                };
+                reader.readAsText(file);  // ファイルをテキストとして読み込む
+            } else {
+                alert("JSONファイルをドロップしてください。");
+            }
+        });
+
+        // グラフを描画する関数
+        function renderGraph(graphData) {
+            // 既存のグラフがあれば削除
+            if (svg) {
+                svg.selectAll("*").remove();
+            }
+
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            // SVG要素の設定
+            svg = d3.select("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            // リンクとノードの設定
+            const links = graphData.links.map(function (d) {
+                return {
+                    source: +d.source,
+                    target: +d.target,
+                    label: d.label || `Edge from ${d.source} to ${d.target}` // エッジのラベル（JSONで追加したlabelを使用）
+                };
+            });
+
+            const nodes = graphData.nodes.map(function (d) {
+                return { id: +d.id, label: d.label };
+            });
+
+            // ノードの次数（接続されているエッジの数）を計算
+            const nodeDegrees = nodes.reduce((acc, node) => {
+                acc[node.id] = links.filter(link => link.source === node.id || link.target === node.id).length;
+                return acc;
+            }, {});
+
+            // シミュレーション設定
+            simulation = d3.forceSimulation(nodes)
+                .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+                .force("charge", d3.forceManyBody().strength(-200))
+                .force("center", d3.forceCenter(width / 2, height / 2));
+
+            // リンクの描画
+            link = svg.append("g")
+                .selectAll(".link")
+                .data(links)
+                .enter().append("line")
+                .attr("class", "link");
+
+            // エッジラベルの描画
+            edgeLabels = svg.append("g")
+                .selectAll(".edge-label")
+                .data(links)
+                .enter().append("text")
+                .attr("class", "edge-label")
+                .attr("text-anchor", "middle")
+                .attr("alignment-baseline", "middle")
+                .text(d => d.label);
+
+            // ノードの描画
+            node = svg.append("g")
+                .selectAll(".node")
+                .data(nodes)
+                .enter().append("circle")
+                .attr("class", "node")
+                .attr("r", function (d) {
+                    return 10 + (nodeDegrees[d.id] || 0) * 10;  // ノードのサイズを次数に基づいて設定
+                })
+                .call(d3.drag()
+                    .on("start", dragstart)
+                    .on("drag", dragged)
+                    .on("end", dragend));
+
+            // ノードのラベル表示
+            label = svg.append("g")
+                .selectAll(".label")
+                .data(nodes)
+                .enter().append("text")
+                .attr("class", "label")
+                .attr("text-anchor", "middle")  // 水平中央揃え
+                .attr("alignment-baseline", "middle")  // 垂直中央揃え
+                .text(d => d.label);
+
+            // シミュレーションのステップごとにノードとリンクを更新
+            simulation.on("tick", function () {
+                link
+                    .attr("x1", function (d) { return d.source.x; })
+                    .attr("y1", function (d) { return d.source.y; })
+                    .attr("x2", function (d) { return d.target.x; })
+                    .attr("y2", function (d) { return d.target.y; });
+
+                node
+                    .attr("cx", function (d) { return d.x; })
+                    .attr("cy", function (d) { return d.y; });
+
+                label
+                    .attr("x", function (d) { return d.x; })
+                    .attr("y", function (d) { return d.y; });
+
+                // エッジラベルの位置調整 (エッジの中点にラベルを配置)
+                edgeLabels
+                    .attr("x", function (d) { return (d.source.x + d.target.x) / 2; })
+                    .attr("y", function (d) { return (d.source.y + d.target.y) / 2; });
+            });
+
+            // ズーム機能の追加
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 4])  // ズームの最小倍率と最大倍率
+                .on("zoom", function (event) {
+                    svg.selectAll("g")
+                        .attr("transform", event.transform);
+                });
+
+            svg.call(zoom);
+
+            // ドラッグイベント
+            function dragstart(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function dragend(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+
+            // ドラッグ＆ドロップエリアを非表示にして、リセットボタンを表示
+            dropArea.style.display = 'none';
+            resetButton.style.display = 'block';
+
+            initSearchfunctionality()
+        }
+
+        // グラフを削除して再度ドラッグ＆ドロップエリアを表示
+        resetButton.addEventListener('click', function () {
+            // グラフを削除
+            if (svg) {
+                svg.selectAll("*").remove();
+            }
+
+            // ドラッグ＆ドロップエリアを再表示
+            dropArea.style.display = 'flex';
+            resetButton.style.display = 'none';
+        });
+    </script>
+</body>
+
+</html>

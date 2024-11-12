@@ -1,0 +1,42 @@
+{
+    "nodes": [
+        {
+            "id": 0,
+            "label": "Node 0"
+        },
+        {
+            "id": 1,
+            "label": "Node 1"
+        },
+        {
+            "id": 2,
+            "label": "Node 2"
+        },
+        {
+            "id": 3,
+            "label": "Node 3"
+        }
+    ],
+    "links": [
+        {
+            "source": 0,
+            "target": 1,
+            "label": "Edge A"
+        },
+        {
+            "source": 1,
+            "target": 2,
+            "label": "Edge B"
+        },
+        {
+            "source": 2,
+            "target": 3,
+            "label": "Edge C"
+        },
+        {
+            "source": 3,
+            "target": 0,
+            "label": "Edge D"
+        }
+    ]
+}

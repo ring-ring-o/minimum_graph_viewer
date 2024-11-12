@@ -1,0 +1,3 @@
+# MinimumGraphView
+networkxやneo4jなどで生成したグラフを簡易的に表示するHTML
+
