@@ -32,7 +32,6 @@
             font-size: 12px;
             pointer-events: none;
             text-anchor: middle;
-            /* 水平中央揃え */
         }
 
         .edge-label {
@@ -75,23 +74,61 @@
             background-color: #45a049;
         }
 
-        /* 検索用の親コンテナ */
-        #search-container {
+        /* サイドバー */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 300px;
+            /* 幅を広げる */
+            height: 100%;
+            background-color: #f4f4f4;
+            padding: 20px;
+            box-shadow: -2px 0px 5px rgba(0, 0, 0, 0.1);
+            display: none;
+            /* 初期状態は非表示 */
+            z-index: 20;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+
+        #sidebar.open {
+            display: block;
+        }
+
+        /* 閉じるボタン */
+        #sidebar .close-btn {
             position: absolute;
             top: 20px;
-            right: 20px;
+            left: -40px;
+            /* サイドバーの外に出す */
+            background-color: #f44336;
+            color: black;
+            border: none;
+            font-size: 24px;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        #sidebar .close-btn:hover {
+            background-color: #e53935;
+        }
+
+        /* 検索用の親コンテナ */
+        #search-container {
             display: flex;
-            align-items: center;
-            z-index: 20;
+            flex-direction: column;
+            /* 横並びに変更 */
+            margin-bottom: 10px;
         }
 
         /* 検索ボックスのスタイル */
         #search-input {
             padding: 10px;
             font-size: 16px;
-            margin-right: 10px;
-            /* 検索ボタンと間隔を縮める */
-            width: 200px;
+            margin-bottom: 10px;
         }
 
         /* 検索ボタンのスタイル */
@@ -107,6 +144,25 @@
         #search-button:hover {
             background-color: #45a049;
         }
+
+        /* 検索結果リスト */
+        #search-results {
+            margin-top: 10px;
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #search-results li {
+            cursor: pointer;
+            padding: 5px;
+            background-color: #f0f0f0;
+            margin-bottom: 5px;
+            border-radius: 4px;
+        }
+
+        #search-results li:hover {
+            background-color: #ddd;
+        }
     </style>
 </head>
 
@@ -116,22 +172,33 @@
     </div>
     <button id="reset-button" style="display: none;">グラフを削除して再度アップロード</button>
     <svg></svg>
-    <!-- 検索用の入力とボタンを同じ親コンテナに配置 -->
-    <div id="search-container" style="display: none;">
-        <input type="text" id="search-input" placeholder="ノードを検索">
-        <button id="search-button">検索</button>
+
+    <!-- サイドバー -->
+    <div id="sidebar">
+        <button class="close-btn" onclick="toggleSidebar()">&times;</button>
+        <div id="search-container">
+            <input type="text" id="search-input" placeholder="ノードを検索">
+            <button id="search-button">検索</button>
+        </div>
+        <ul id="search-results"></ul>
     </div>
 
     <script>
         let svg, simulation, node, link, label, edgeLabels, graph, nodes, links;
+        let highlightedNode = null; // ハイライトされたノードを追跡
 
         // ドラッグ＆ドロップでファイルを読み込む処理
         const dropArea = document.getElementById('drop-area');
         const resetButton = document.getElementById('reset-button');
-        const searchArea = document.getElementById('search-container')
+        const searchInput = document.getElementById('search-input');
+        const searchButton = document.getElementById('search-button');
+        const searchResults = document.getElementById('search-results');
+        const sidebar = document.getElementById('sidebar');
+
+        // ドラッグ＆ドロップのイベントリスナー
         dropArea.addEventListener('dragover', function (event) {
-            event.preventDefault();  // デフォルトの動作を防ぐ（ファイルの読み込みを許可）
-            dropArea.style.backgroundColor = 'rgba(0, 255, 0, 0.2)';  // ドロップ可能なエリアの色を変更
+            event.preventDefault();
+            dropArea.style.backgroundColor = 'rgba(0, 255, 0, 0.2)';
         });
 
         dropArea.addEventListener('dragleave', function () {
@@ -140,16 +207,16 @@
 
         dropArea.addEventListener('drop', function (event) {
             event.preventDefault();
-            dropArea.style.backgroundColor = 'rgba(255, 255, 255, 0.7)'; // 元の色に戻す
+            dropArea.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
 
-            const file = event.dataTransfer.files[0]; // ドロップしたファイルを取得
+            const file = event.dataTransfer.files[0];
             if (file && file.type === 'application/json') {
                 const reader = new FileReader();
                 reader.onload = function (e) {
-                    graph = JSON.parse(e.target.result);  // JSONファイルの内容をパース
-                    renderGraph(graph);  // グラフを描画
+                    graph = JSON.parse(e.target.result);
+                    renderGraph(graph);
                 };
-                reader.readAsText(file);  // ファイルをテキストとして読み込む
+                reader.readAsText(file);
             } else {
                 alert("JSONファイルをドロップしてください。");
             }
@@ -157,7 +224,6 @@
 
         // グラフを描画する関数
         function renderGraph(graphData) {
-            // 既存のグラフがあれば削除
             if (svg) {
                 svg.selectAll("*").remove();
             }
@@ -165,196 +231,167 @@
             const width = window.innerWidth;
             const height = window.innerHeight;
 
-            // SVG要素の設定
-            svg = d3.select("svg")
-                .attr("width", width)
-                .attr("height", height);
+            svg = d3.select("svg").attr("width", width).attr("height", height);
 
-            // リンクとノードの設定
             links = graphData.links.map(function (d) {
-                return {
-                    source: +d.source,
-                    target: +d.target,
-                    label: d.label || `Edge from ${d.source} to ${d.target}` // エッジのラベル（JSONで追加したlabelを使用）
-                };
+                return { source: +d.source, target: +d.target, label: d.label || `Edge from ${d.source} to ${d.target}` };
             });
 
             nodes = graphData.nodes.map(function (d) {
                 return { id: +d.id, label: d.label };
             });
 
-            // ノードの次数（接続されているエッジの数）を計算
             const nodeDegrees = nodes.reduce((acc, node) => {
                 acc[node.id] = links.filter(link => link.source === node.id || link.target === node.id).length;
                 return acc;
             }, {});
 
-            // シミュレーション設定
             simulation = d3.forceSimulation(nodes)
                 .force("link", d3.forceLink(links).id(d => d.id).distance(100))
                 .force("charge", d3.forceManyBody().strength(-200))
                 .force("center", d3.forceCenter(width / 2, height / 2));
 
-            // リンクの描画
-            link = svg.append("g")
-                .selectAll(".link")
-                .data(links)
-                .enter().append("line")
+            link = svg.append("g").selectAll(".link")
+                .data(links).enter().append("line")
                 .attr("class", "link");
 
-            // エッジラベルの描画
-            edgeLabels = svg.append("g")
-                .selectAll(".edge-label")
-                .data(links)
-                .enter().append("text")
+            edgeLabels = svg.append("g").selectAll(".edge-label")
+                .data(links).enter().append("text")
                 .attr("class", "edge-label")
                 .attr("text-anchor", "middle")
                 .attr("alignment-baseline", "middle")
                 .text(d => d.label);
 
-            // ノードの描画
-            node = svg.append("g")
-                .selectAll(".node")
-                .data(nodes)
-                .enter().append("circle")
+            node = svg.append("g").selectAll(".node")
+                .data(nodes).enter().append("circle")
                 .attr("class", "node")
-                .attr("r", function (d) {
-                    return 10 + (nodeDegrees[d.id] || 0) * 10;  // ノードのサイズを次数に基づいて設定
-                })
+                .attr("r", d => 10 + nodeDegrees[d.id])
                 .call(d3.drag()
                     .on("start", dragstart)
                     .on("drag", dragged)
                     .on("end", dragend));
 
-            // ノードのラベル表示
-            label = svg.append("g")
-                .selectAll(".label")
-                .data(nodes)
-                .enter().append("text")
+            label = svg.append("g").selectAll(".label")
+                .data(nodes).enter().append("text")
                 .attr("class", "label")
-                .attr("text-anchor", "middle")  // 水平中央揃え
-                .attr("alignment-baseline", "middle")  // 垂直中央揃え
                 .text(d => d.label);
 
-            // シミュレーションのステップごとにノードとリンクを更新
             simulation.on("tick", function () {
-                link
-                    .attr("x1", function (d) { return d.source.x; })
-                    .attr("y1", function (d) { return d.source.y; })
-                    .attr("x2", function (d) { return d.target.x; })
-                    .attr("y2", function (d) { return d.target.y; });
+                link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
 
-                node
-                    .attr("cx", function (d) { return d.x; })
-                    .attr("cy", function (d) { return d.y; });
-
-                label
-                    .attr("x", function (d) { return d.x; })
-                    .attr("y", function (d) { return d.y; });
-
-                // エッジラベルの位置調整 (エッジの中点にラベルを配置)
-                edgeLabels
-                    .attr("x", function (d) { return (d.source.x + d.target.x) / 2; })
-                    .attr("y", function (d) { return (d.source.y + d.target.y) / 2; });
+                node.attr("cx", d => d.x).attr("cy", d => d.y);
+                label.attr("x", d => d.x).attr("y", d => d.y);
+                edgeLabels.attr("x", d => (d.source.x + d.target.x) / 2)
+                    .attr("y", d => (d.source.y + d.target.y) / 2);
             });
 
-            // ズーム機能の追加
-            const zoom = d3.zoom()
-                .scaleExtent([0.1, 4])  // ズームの最小倍率と最大倍率
-                .on("zoom", function (event) {
-                    svg.selectAll("g")
-                        .attr("transform", event.transform);
-                });
-
+            const zoom = d3.zoom().scaleExtent([0.1, 4]).on("zoom", event => {
+                svg.selectAll("g").attr("transform", event.transform);
+            });
             svg.call(zoom);
 
-            // ドラッグイベント
-            function dragstart(event, d) {
-                if (!event.active) simulation.alphaTarget(0.3).restart();
-                d.fx = d.x;
-                d.fy = d.y;
-            }
-
-            function dragged(event, d) {
-                d.fx = event.x;
-                d.fy = event.y;
-            }
-
-            function dragend(event, d) {
-                if (!event.active) simulation.alphaTarget(0);
-                d.fx = null;
-                d.fy = null;
-            }
-
-            // ドラッグ＆ドロップエリアを非表示にして、リセットボタンを表示
             dropArea.style.display = 'none';
             resetButton.style.display = 'block';
-            searchArea.style.display = 'block';
+            sidebar.style.display = 'block';
 
             initSearchfunctionality();
         }
 
-        // グラフを削除して再度ドラッグ＆ドロップエリアを表示
-        resetButton.addEventListener('click', function () {
-            // グラフを削除
-            if (svg) {
-                svg.selectAll("*").remove();
-            }
+        // サイドバーを開閉する関数
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+        }
 
-            // ドラッグ＆ドロップエリアを再表示
-            dropArea.style.display = 'flex';
-            resetButton.style.display = 'none';
-            searchArea.style.display = 'none';
-        });
-
-        // 検索機能を初期化
+        // 検索機能の初期化
         function initSearchfunctionality() {
-            const searchInput = document.getElementById('search-input');
-            const searchButton = document.getElementById('search-button');
-
             searchButton.addEventListener('click', function () {
                 const searchTerm = searchInput.value.trim().toLowerCase();
                 if (searchTerm) {
-                    highlightNode(searchTerm);
+                    showSearchResults(searchTerm);
+                } else {
+                    searchResults.innerHTML = ''; // 検索ボックスが空の場合、リストを空にする
+                    resetHighlight(); // ハイライトをリセット
                 }
             });
 
-            // 検索入力が変更されるたびにハイライトをリセット
             searchInput.addEventListener('input', function () {
                 const searchTerm = searchInput.value.trim().toLowerCase();
-                if (!searchTerm) {
-                    resetHighlight();
+                if (searchTerm) {
+                    showSearchResults(searchTerm);
+                } else {
+                    searchResults.innerHTML = ''; // 検索ボックスが空の場合、リストを空にする
+                    resetHighlight(); // ハイライトをリセット
                 }
             });
         }
 
-        // ノードを検索してハイライトする関数
-        function highlightNode(searchTerm) {
-            const targetNode = nodes.find(node => node.label && node.label.toLowerCase().includes(searchTerm));
+        // 検索結果をリストに表示
+        function showSearchResults(searchTerm) {
+            const results = nodes.filter(node =>
+                node.label.toLowerCase().includes(searchTerm)
+            );
 
-            if (targetNode) {
-                node.transition().duration(500)
-                    .style("fill", function (d) {
-                        return d.id === targetNode.id ? "red" : "#ffc4f2"; // ノードの背景色を赤色に
-                    });
+            searchResults.innerHTML = '';
+            results.forEach(result => {
+                const li = document.createElement('li');
+                li.textContent = result.label;
+                li.addEventListener('click', () => highlightNode(result.id));
+                searchResults.appendChild(li);
+            });
 
-                label.transition().duration(500)
-                    .style("fill", function (d) {
-                        return d.id === targetNode.id ? "black" : "#000"; // ラベルの文字色を赤色に
-                    });
-            } else {
-                alert("ノードが見つかりませんでした。");
+            if (results.length === 0) {
+                searchResults.innerHTML = '<li>ノードが見つかりませんでした。</li>';
             }
+        }
+
+        // ノードをハイライトする関数
+        function highlightNode(nodeId) {
+            highlightedNode = nodeId; // ハイライトされたノードを保存
+            node.transition().duration(500)
+                .style("fill", d => d.id === nodeId ? "red" : "#ffc4f2");
+
+            label.transition().duration(500)
+                .style("fill", d => d.id === nodeId ? "black" : "#000");
         }
 
         // ハイライトをリセットする関数
         function resetHighlight() {
+            highlightedNode = null;
             node.transition().duration(500)
-                .style("fill", "#ffc4f2"); // 元の色に戻す
+                .style("fill", "#ffc4f2");
 
             label.transition().duration(500)
-                .style("fill", "#000"); // 元の色に戻す
+                .style("fill", "#000");
         }
+
+        // ドラッグイベント
+        function dragstart(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragend(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // リセットボタンの処理
+        resetButton.addEventListener('click', function () {
+            if (svg) {
+                svg.selectAll("*").remove();
+            }
+            dropArea.style.display = 'flex';
+            resetButton.style.display = 'none';
+            sidebar.style.display = 'none';
+        });
     </script>
 </body>
 
