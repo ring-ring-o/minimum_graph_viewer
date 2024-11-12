@@ -318,6 +318,14 @@
                     highlightNode(searchTerm);
                 }
             });
+
+            // 検索入力が変更されるたびにハイライトをリセット
+            searchInput.addEventListener('input', function () {
+                const searchTerm = searchInput.value.trim().toLowerCase();
+                if (!searchTerm) {
+                    resetHighlight();
+                }
+            });
         }
 
         // ノードを検索してハイライトする関数
@@ -337,6 +345,15 @@
             } else {
                 alert("ノードが見つかりませんでした。");
             }
+        }
+
+        // ハイライトをリセットする関数
+        function resetHighlight() {
+            node.transition().duration(500)
+                .style("fill", "#ffc4f2"); // 元の色に戻す
+
+            label.transition().duration(500)
+                .style("fill", "#000"); // 元の色に戻す
         }
     </script>
 </body>
