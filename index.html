@@ -131,20 +131,6 @@
             margin-bottom: 10px;
         }
 
-        /* 検索ボタンのスタイル */
-        #search-button {
-            padding: 10px;
-            font-size: 16px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-
-        #search-button:hover {
-            background-color: #45a049;
-        }
-
         /* 検索結果リスト */
         #search-results {
             margin-top: 10px;
@@ -178,7 +164,6 @@
         <button class="close-btn" onclick="toggleSidebar()">&times;</button>
         <div id="search-container">
             <input type="text" id="search-input" placeholder="ノードを検索">
-            <button id="search-button">検索</button>
         </div>
         <ul id="search-results"></ul>
     </div>
@@ -191,7 +176,6 @@
         const dropArea = document.getElementById('drop-area');
         const resetButton = document.getElementById('reset-button');
         const searchInput = document.getElementById('search-input');
-        const searchButton = document.getElementById('search-button');
         const searchResults = document.getElementById('search-results');
         const sidebar = document.getElementById('sidebar');
 
@@ -295,7 +279,7 @@
             resetButton.style.display = 'block';
             sidebar.style.display = 'block';
 
-            initSearchfunctionality();
+            initSearchFunctionality();
         }
 
         // サイドバーを開閉する関数
@@ -304,17 +288,7 @@
         }
 
         // 検索機能の初期化
-        function initSearchfunctionality() {
-            searchButton.addEventListener('click', function () {
-                const searchTerm = searchInput.value.trim().toLowerCase();
-                if (searchTerm) {
-                    showSearchResults(searchTerm);
-                } else {
-                    searchResults.innerHTML = ''; // 検索ボックスが空の場合、リストを空にする
-                    resetHighlight(); // ハイライトをリセット
-                }
-            });
-
+        function initSearchFunctionality() {
             searchInput.addEventListener('input', function () {
                 const searchTerm = searchInput.value.trim().toLowerCase();
                 if (searchTerm) {
