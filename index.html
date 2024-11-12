@@ -123,7 +123,7 @@
     </div>
 
     <script>
-        let svg, simulation, node, link, label, edgeLabels, graph;
+        let svg, simulation, node, link, label, edgeLabels, graph, nodes, links;
 
         // ドラッグ＆ドロップでファイルを読み込む処理
         const dropArea = document.getElementById('drop-area');
@@ -171,7 +171,7 @@
                 .attr("height", height);
 
             // リンクとノードの設定
-            const links = graphData.links.map(function (d) {
+            links = graphData.links.map(function (d) {
                 return {
                     source: +d.source,
                     target: +d.target,
@@ -179,7 +179,7 @@
                 };
             });
 
-            const nodes = graphData.nodes.map(function (d) {
+            nodes = graphData.nodes.map(function (d) {
                 return { id: +d.id, label: d.label };
             });
 
@@ -291,7 +291,7 @@
             resetButton.style.display = 'block';
             searchArea.style.display = 'block';
 
-            initSearchfunctionality()
+            initSearchfunctionality();
         }
 
         // グラフを削除して再度ドラッグ＆ドロップエリアを表示
@@ -304,6 +304,7 @@
             // ドラッグ＆ドロップエリアを再表示
             dropArea.style.display = 'flex';
             resetButton.style.display = 'none';
+            searchArea.style.display = 'none';
         });
 
         // 検索機能を初期化
@@ -326,18 +327,17 @@
             if (targetNode) {
                 node.transition().duration(500)
                     .style("fill", function (d) {
-                        return d.id === targetNode.id ? "red" : "#ffc4f2"; // 検索結果のノードを赤色に
+                        return d.id === targetNode.id ? "red" : "#ffc4f2"; // ノードの背景色を赤色に
                     });
 
                 label.transition().duration(500)
                     .style("fill", function (d) {
-                        return d.id === targetNode.id ? "red" : "#000"; // ラベルを赤色に
+                        return d.id === targetNode.id ? "black" : "#000"; // ラベルの文字色を赤色に
                     });
             } else {
                 alert("ノードが見つかりませんでした。");
             }
         }
-
     </script>
 </body>
 
