@@ -37,6 +37,11 @@
             "source": 3,
             "target": 0,
             "label": "Edge D"
+        },
+        {
+            "source": 1,
+            "target": 3,
+            "label": "Edge E"
         }
     ]
 }
